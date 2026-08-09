@@ -1,0 +1,17 @@
+{
+  "name": "trading-journal",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "scripts": {
+    "dev": "pnpm --filter @trading-journal/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter @trading-journal/web lint",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @trading-journal/web test:e2e"
+  },
+  "devDependencies": {
+    "supabase": "^2.113.0"
+  }
+}

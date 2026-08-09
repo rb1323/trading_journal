@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  unrs-resolver: true
+
+confirmModulesPurge: false
+managePackageManagerVersions: false
+strictPeerDependencies: false
+verifyDepsBeforeRun: warn
+enableGlobalVirtualStore: false
