@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 const navigation = [
   ["Dashboard", "/dashboard"],
   ["Treidit", "/trades"],
+  ["Review", "/review"],
   ["Positiot", "/positions"],
   ["Executionit", "/executions"],
   ["Importit", "/imports"],

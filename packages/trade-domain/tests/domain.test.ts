@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
-import { parseBrokerCsv, parseDasCsv, reconcileTradeCosts, reconstructTrades, SnapshotParseError } from "../src";
+import { calculateDrawdowns, parseBrokerCsv, parseDasCsv, reconcileTradeCosts, reconstructTrades, SnapshotParseError } from "../src";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = readFileSync(resolve(here, "../../../examples/Trades.csv"), "utf8");
@@ -157,5 +157,46 @@ describe("phase 2 broker reconciliation", () => {
     expect(result.groups.every((group) => group.status === "reconciled")).toBe(true);
     expect(result.unallocatedFees).toBe("0");
     expect(result.allocations.reduce((sum, allocation) => sum.plus(allocation.amount), new Decimal(0)).toFixed(2)).toBe("27.69");
+  });
+});
+
+describe("phase 3 drawdown analytics", () => {
+  it("measures recovered and open drawdown episodes in trading days", () => {
+    const result = calculateDrawdowns([
+      { date: "2026-08-03", net: 100 },
+      { date: "2026-08-04", net: -40 },
+      { date: "2026-08-05", net: -30 },
+      { date: "2026-08-06", net: 70 },
+      { date: "2026-08-07", net: 50 },
+      { date: "2026-08-10", net: -20 }
+    ]);
+    expect(result.episodes).toEqual([
+      { startDate: "2026-08-04", troughDate: "2026-08-05", recoveryDate: "2026-08-06", depth: "-70", lengthTradingDays: 3 },
+      { startDate: "2026-08-10", troughDate: "2026-08-10", recoveryDate: null, depth: "-20", lengthTradingDays: 1 }
+    ]);
+    expect(result.averageDrawdown).toBe("-45");
+    expect(result.maxDrawdown).toBe("-70");
+    expect(result.currentDrawdown).toBe("-20");
+    expect(result.averageLengthTradingDays).toBe(2);
+    expect(result.longestLengthTradingDays).toBe(3);
+    expect(result.currentLengthTradingDays).toBe(1);
+  });
+
+  it("aggregates duplicate dates and returns zeros without a drawdown", () => {
+    const result = calculateDrawdowns([
+      { date: "2026-08-03", net: 25 },
+      { date: "2026-08-03", net: 25 },
+      { date: "2026-08-04", net: 10 }
+    ]);
+    expect(result.daily.map((day) => day.cumulative)).toEqual([50, 60]);
+    expect(result.episodes).toEqual([]);
+    expect(result.maxDrawdown).toBe("0");
+    expect(result.averageLengthTradingDays).toBe(0);
+  });
+
+  it("starts an episode when the first result is negative", () => {
+    const result = calculateDrawdowns([{ date: "2026-08-03", net: "-12.50" }]);
+    expect(result.maxDrawdown).toBe("-12.5");
+    expect(result.currentLengthTradingDays).toBe(1);
   });
 });

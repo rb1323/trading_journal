@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { DateTime } from "luxon";
 import Link from "next/link";
+import { calculateDrawdowns } from "@trading-journal/trade-domain";
 import { PerformanceCharts, type DailyPerformance } from "@/components/performance-charts";
 import { requireUser } from "@/lib/auth";
 import { formatMoney, formatNumber } from "@/lib/format";
@@ -29,9 +30,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (params.account) tradeQuery = tradeQuery.eq("source_account", params.account);
   if (params.symbol) tradeQuery = tradeQuery.eq("symbol", params.symbol.toUpperCase());
   if (params.direction) tradeQuery = tradeQuery.eq("direction", params.direction);
-  const [{ data: trades }, { data: accounts }] = await Promise.all([
+  let reviewQuery = supabase.from("trade_reviews").select("id,trade_key,status,rating,followed_plan").gte("trade_opened_at", from.toUTC().toISO()!).lte("trade_opened_at", to.toUTC().toISO()!);
+  if (params.account) reviewQuery = reviewQuery.eq("source_account", params.account);
+  if (params.symbol) reviewQuery = reviewQuery.eq("symbol", params.symbol.toUpperCase());
+  const [{ data: trades }, { data: accounts }, { data: reviews }, { data: assignments }, { data: tags }] = await Promise.all([
     tradeQuery.limit(50_000),
-    supabase.from("broker_accounts").select("id,source_account,display_name").order("source_account")
+    supabase.from("broker_accounts").select("id,source_account,display_name").order("source_account"),
+    reviewQuery.limit(50_000),
+    supabase.from("trade_review_tags").select("review_id,tag_id").limit(100_000),
+    supabase.from("journal_tags").select("id,name,category,color").limit(2000)
   ]);
 
   const rows = trades ?? [];
@@ -57,13 +64,30 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     feesByDate.set(date, (feesByDate.get(date) ?? new Decimal(0)).plus(String(trade.allocated_fees ?? 0)));
   }
   const dates = [...new Set([...grossByDate.keys(), ...feesByDate.keys()])].sort();
-  const performance = dates.reduce<{ daily: DailyPerformance[]; cumulative: Decimal; peak: Decimal }>((state, date) => {
-    const value = (grossByDate.get(date) ?? new Decimal(0)).minus(feesByDate.get(date) ?? 0);
-    const cumulative = state.cumulative.plus(value);
-    const peak = cumulative.gt(state.peak) ? cumulative : state.peak;
-    return { daily: [...state.daily, { date, net: value.toNumber(), cumulative: cumulative.toNumber(), drawdown: cumulative.minus(peak).toNumber() }], cumulative, peak };
-  }, { daily: [], cumulative: new Decimal(0), peak: new Decimal(0) });
-  const daily = performance.daily;
+  const drawdowns = calculateDrawdowns(dates.map((date) => ({ date, net: (grossByDate.get(date) ?? new Decimal(0)).minus(feesByDate.get(date) ?? 0).toString() })));
+  const daily: DailyPerformance[] = drawdowns.daily;
+
+  const tradeByKey = new Map(rows.map((trade) => [trade.trade_key, trade]));
+  const validReviews = (reviews ?? []).filter((review) => tradeByKey.has(review.trade_key));
+  const reviewById = new Map(validReviews.map((review) => [review.id, review]));
+  const tagById = new Map((tags ?? []).map((tag) => [tag.id, tag]));
+  const reviewed = validReviews.filter((review) => review.status === "reviewed");
+  const followedPlanTrades = validReviews.filter((review) => review.followed_plan === true).map((review) => tradeByKey.get(review.trade_key)!);
+  const brokePlanTrades = validReviews.filter((review) => review.followed_plan === false).map((review) => tradeByKey.get(review.trade_key)!);
+  const sumTradeNet = (items: typeof rows) => items.reduce((sum, trade) => sum.plus(String(trade.net_pnl ?? trade.gross_pnl)), new Decimal(0));
+  const tagStats = new Map<string, { id: string; name: string; category: string; color: string; count: number; net: Decimal }>();
+  for (const assignment of assignments ?? []) {
+    const review = reviewById.get(assignment.review_id);
+    const tag = tagById.get(assignment.tag_id);
+    const trade = review ? tradeByKey.get(review.trade_key) : null;
+    if (!review || !tag || !trade || (tag.category !== "setup" && tag.category !== "mistake")) continue;
+    const current = tagStats.get(tag.id) ?? { ...tag, count: 0, net: new Decimal(0) };
+    current.count += 1;
+    current.net = current.net.plus(String(trade.net_pnl ?? trade.gross_pnl));
+    tagStats.set(tag.id, current);
+  }
+  const setupStats = [...tagStats.values()].filter((tag) => tag.category === "setup").sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 8);
+  const mistakeStats = [...tagStats.values()].filter((tag) => tag.category === "mistake").sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 8);
 
   const tradesByDate = new Map<string, number>();
   for (const trade of rows) {
@@ -78,7 +102,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <article><span>Win rate</span><strong>{(winRate * 100).toFixed(1)}%</strong></article><article><span>Avg trade</span><strong>{formatMoney(rows.length ? net.div(rows.length).toString() : 0)}</strong></article><article><span>Avg winner</span><strong className="positive">{formatMoney(winners.length ? grossProfit.div(winners.length).toString() : 0)}</strong></article><article><span>Avg loser</span><strong className="negative">{formatMoney(losers.length ? grossLoss.neg().div(losers.length).toString() : 0)}</strong></article>
       <article><span>Profit factor</span><strong>{grossLoss.isZero() ? "—" : grossProfit.div(grossLoss).toFixed(2)}</strong></article><article><span>Kokonaisvolyymi</span><strong>{formatNumber(rows.reduce((sum, trade) => sum + trade.quantity, 0))}</strong></article>
     </div>
+    <div className="section-heading"><h2>Drawdown</h2><span className="muted">Valittu aikaväli · net P&amp;L · treidauspäivät</span></div>
+    <div className="drawdown-kpis">
+      <article><span>Avg drawdown length</span><strong>{drawdowns.averageLengthTradingDays.toFixed(1)} pv</strong></article>
+      <article><span>Longest drawdown</span><strong>{drawdowns.longestLengthTradingDays} pv</strong></article>
+      <article><span>Avg drawdown</span><strong className="negative">{formatMoney(drawdowns.averageDrawdown)}</strong></article>
+      <article><span>Max drawdown</span><strong className="negative">{formatMoney(drawdowns.maxDrawdown)}</strong></article>
+      <article><span>Current drawdown</span><strong className={new Decimal(drawdowns.currentDrawdown).isNegative() ? "negative" : ""}>{formatMoney(drawdowns.currentDrawdown)} · {drawdowns.currentLengthTradingDays} pv</strong></article>
+    </div>
     <PerformanceCharts daily={daily} />
+    <div className="section-heading"><h2>Review-analytiikka</h2><Link className="ghost" href="/review">Avaa review-jono</Link></div>
+    <div className="review-summary">
+      <article><span>Review-kattavuus</span><strong>{rows.length ? (reviewed.length / rows.length * 100).toFixed(1) : "0.0"}%</strong><small>{reviewed.length} / {rows.length} treidiä</small></article>
+      <article><span>Arvioimatta</span><strong>{rows.length - reviewed.length}</strong><small>sisältää luonnokset</small></article>
+      <article><span>Noudatin plania</span><strong>{followedPlanTrades.length}</strong><small className={sumTradeNet(followedPlanTrades).isNegative() ? "negative" : "positive"}>{formatMoney(sumTradeNet(followedPlanTrades).toString())}</small></article>
+      <article><span>Rikoin plania</span><strong>{brokePlanTrades.length}</strong><small className={sumTradeNet(brokePlanTrades).isNegative() ? "negative" : "positive"}>{formatMoney(sumTradeNet(brokePlanTrades).toString())}</small></article>
+    </div>
+    <div className="journal-analytics"><article><h3>Setupit</h3>{setupStats.length ? setupStats.map((tag) => <div className="analytics-row" key={tag.id}><span><i style={{ background: tag.color }} />{tag.name}<small>{tag.count} treidiä</small></span><strong className={tag.net.isNegative() ? "negative" : "positive"}>{formatMoney(tag.net.toString())}</strong></div>) : <p className="muted">Lisää treideille setup-tageja.</p>}</article><article><h3>Virheet</h3>{mistakeStats.length ? mistakeStats.map((tag) => <div className="analytics-row" key={tag.id}><span><i style={{ background: tag.color }} />{tag.name}<small>{tag.count} treidiä</small></span><strong className={tag.net.isNegative() ? "negative" : "positive"}>{formatMoney(tag.net.toString())}</strong></div>) : <p className="muted">Lisää treideille mistake-tageja.</p>}</article></div>
     <div className="section-heading"><h2>Päiväkohtainen tulos</h2></div>
     <div className="calendar-grid">{daily.map((day) => <Link href={`/trades?date=${day.date}`} key={day.date} className={`calendar-day ${day.net >= 0 ? "win" : "loss"}`}><span>{DateTime.fromISO(day.date).toFormat("dd.LL")}</span><strong>{formatMoney(day.net)}</strong><small>{tradesByDate.get(day.date) ?? 0} treidiä</small></Link>)}</div>
   </section>;

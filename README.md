@@ -79,3 +79,12 @@ Domain-fixture varmistaa 59 filliä, 11 orderia, 5 treidiä ja `-$2.6318` gross 
 5. Lataa brokerin `Transactions.csv` Importit-sivulta.
 
 Chart käyttää Alpaca Basicin historiallista 1 minuutin SIP-dataa. Ensimmäinen täydellisen session avaus tallentaa gzipatun symboli-päivän Supabase Storageen; seuraavat avaukset käyttävät omaa arkistoa.
+
+## Vaihe 3: reviewt, tagit ja drawdown
+
+1. Suorita uusin Supabase-migraatio komennolla `supabase db push`.
+2. Migraatio luo `trade_reviews`, `journal_tags` ja `trade_review_tags` -taulut sekä versionoidun `save_trade_review`-RPC:n.
+3. Redeployaa web-sovellus.
+4. Avaa treidi ja kirjoita muistiinpanot Journal-osiossa. Muutokset tallentuvat automaattisesti noin sekunnin viiveellä.
+
+Review säilyy, vaikka DAS-rekonstruktio poistaisi alkuperäisen treidirivin: tietue jää talteen ja sama `trade_key` liittää sen automaattisesti takaisin. Dashboardin drawdown lasketaan valitun aikavälin päivittäisestä net P&L -käyrästä. Pituudet ovat treidauspäiviä ja rahamäärät dollareita.
