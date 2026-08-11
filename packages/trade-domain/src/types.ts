@@ -64,3 +64,73 @@ export interface ReconstructionResult {
   allocations: TradeFillAllocation[];
 }
 
+export interface BrokerTransaction {
+  stableKey: string;
+  accountNumber: string;
+  transactionId: string;
+  entryType: string;
+  description: string;
+  tradeDate: string;
+  settlementDate: string | null;
+  side: string;
+  symbol: string;
+  quantity: string;
+  price: string;
+  commission: string;
+  ecnFee: string;
+  exchangeFee: string;
+  regulatoryFee: string;
+  locateFee: string;
+  otherFees: string;
+  occFee: string;
+  orfFee: string;
+  tafFee: string;
+  totalFees: string;
+  grossAmount: string;
+  netAmount: string;
+  raw: Record<string, string>;
+}
+
+export interface BrokerParseResult {
+  transactions: BrokerTransaction[];
+  issues: ParseIssue[];
+}
+
+export interface CostTradeLeg {
+  tradeId: string;
+  sourceAccount: string;
+  symbol: string;
+  tradeDate: string;
+  direction: TradeDirection;
+  side: DasSide;
+  quantity: number;
+  notional: string;
+}
+
+export interface MappedBrokerTransaction extends BrokerTransaction {
+  sourceAccount: string;
+}
+
+export interface TradeCostAllocationResult {
+  transactionStableKey: string;
+  tradeId: string;
+  costType: "trade_fee" | "locate_fee";
+  amount: string;
+}
+
+export interface CostReconciliationGroup {
+  key: string;
+  status: "reconciled" | "conflict";
+  brokerQuantity: string;
+  executionQuantity: string;
+  brokerNotional: string;
+  executionNotional: string;
+  message?: string;
+}
+
+export interface CostReconciliationResult {
+  allocations: TradeCostAllocationResult[];
+  tradeStatuses: Record<string, "provisional" | "reconciled" | "conflict">;
+  groups: CostReconciliationGroup[];
+  unallocatedFees: string;
+}

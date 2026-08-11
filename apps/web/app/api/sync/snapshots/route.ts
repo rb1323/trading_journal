@@ -4,6 +4,7 @@ import { parseDasCsv, SnapshotParseError } from "@trading-journal/trade-domain";
 import { authenticateDevice } from "@/lib/device-auth";
 import { sha256 } from "@/lib/crypto";
 import { rebuildUserTrades } from "@/lib/rebuild";
+import { reconcileUserBrokerCosts } from "@/lib/broker-costs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
     }
 
     const rebuilt = await rebuildUserTrades(auth.admin, source.user_id);
+    await reconcileUserBrokerCosts(auth.admin, source.user_id);
     const issues = [...parsed.issues, ...conflicts];
     const summary = {
       status: conflicts.length > 0 ? "conflict" : "succeeded",

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 const navigation = [
+  ["Dashboard", "/dashboard"],
   ["Treidit", "/trades"],
   ["Positiot", "/positions"],
   ["Executionit", "/executions"],
@@ -29,4 +30,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

@@ -3,10 +3,12 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
-import { parseDasCsv, reconstructTrades, SnapshotParseError } from "../src";
+import { parseBrokerCsv, parseDasCsv, reconcileTradeCosts, reconstructTrades, SnapshotParseError } from "../src";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = readFileSync(resolve(here, "../../../examples/Trades.csv"), "utf8");
+const fixture2 = readFileSync(resolve(here, "../../../examples/Trades2.csv"), "utf8");
+const transactions2 = readFileSync(resolve(here, "../../../examples/Transactions2.csv"), "utf8");
 
 describe("DAS CSV parser", () => {
   it("parses the supplied fixture with invariant timestamps and decimals", () => {
@@ -112,5 +114,48 @@ describe("trade reconstruction", () => {
     ].join("\n");
     const [trade] = reconstructTrades(parseDasCsv(csv, { sourceId: "fixture" }).fills).trades;
     expect(trade).toMatchObject({ status: "closed", direction: "long", grossPnl: "100" });
+  });
+});
+
+describe("phase 2 broker reconciliation", () => {
+  it("reconstructs the supplied second DAS export", () => {
+    const parsed = parseDasCsv(fixture2, { sourceId: "fixture-2" });
+    const result = reconstructTrades(parsed.fills);
+    expect(parsed.fills).toHaveLength(47);
+    expect(result.trades).toHaveLength(15);
+    expect(result.trades.reduce((sum, trade) => sum.plus(trade.grossPnl), new Decimal(0)).toFixed(4)).toBe("-111.1466");
+  });
+
+  it("parses and reconciles the supplied broker export", () => {
+    const broker = parseBrokerCsv(transactions2);
+    expect(broker.issues).toEqual([]);
+    expect(broker.transactions).toHaveLength(17);
+    expect(broker.transactions.filter((row) => row.entryType === "TRD")).toHaveLength(12);
+    expect(broker.transactions.filter((row) => row.entryType === "JNLC")).toHaveLength(5);
+    expect(broker.transactions.reduce((sum, row) => sum.plus(row.totalFees), new Decimal(0)).toFixed(2)).toBe("27.69");
+
+    const parsed = parseDasCsv(fixture2, { sourceId: "fixture-2" });
+    const rebuilt = reconstructTrades(parsed.fills);
+    const fills = new Map(parsed.fills.map((fill) => [fill.stableKey, fill]));
+    const trades = new Map(rebuilt.trades.map((trade) => [trade.tradeKey, trade]));
+    const legs = rebuilt.allocations.map((allocation) => {
+      const fill = fills.get(allocation.fillStableKey)!;
+      const trade = trades.get(allocation.tradeKey)!;
+      return {
+        tradeId: trade.tradeKey,
+        sourceAccount: trade.account,
+        symbol: trade.symbol,
+        tradeDate: fill.executionDate,
+        direction: trade.direction,
+        side: fill.side,
+        quantity: allocation.quantity,
+        notional: new Decimal(allocation.price).mul(allocation.quantity).toString()
+      };
+    });
+    const result = reconcileTradeCosts(legs, broker.transactions.map((row) => ({ ...row, sourceAccount: row.accountNumber })));
+    expect(result.groups).toHaveLength(10);
+    expect(result.groups.every((group) => group.status === "reconciled")).toBe(true);
+    expect(result.unallocatedFees).toBe("0");
+    expect(result.allocations.reduce((sum, allocation) => sum.plus(allocation.amount), new Decimal(0)).toFixed(2)).toBe("27.69");
   });
 });

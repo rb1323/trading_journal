@@ -22,3 +22,9 @@ export function hasPublicSupabaseEnv(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+export function alpacaEnv() {
+  return {
+    keyId: required("ALPACA_API_KEY_ID"),
+    secretKey: required("ALPACA_API_SECRET_KEY")
+  };
+}

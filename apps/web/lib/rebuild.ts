@@ -60,13 +60,13 @@ export async function rebuildUserTrades(admin: SupabaseClient, userId: string) {
     };
   });
   const allocations = rebuilt.allocations.map((allocation) => ({
-    trade_id: tradeIds.get(allocation.tradeKey),
+    trade_key: allocation.tradeKey,
     fill_id: fillIds.get(allocation.fillStableKey),
     role: allocation.role,
     quantity: allocation.quantity,
     price: allocation.price
   }));
-  if (allocations.some((allocation) => !allocation.trade_id || !allocation.fill_id)) {
+  if (allocations.some((allocation) => !tradeIds.has(allocation.trade_key) || !allocation.fill_id)) {
     throw new Error("Reconstruction produced an unresolved allocation.");
   }
 
@@ -78,4 +78,3 @@ export async function rebuildUserTrades(admin: SupabaseClient, userId: string) {
   if (replaceError) throw replaceError;
   return rebuilt;
 }
-

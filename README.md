@@ -69,3 +69,13 @@ DAS Traderissa auto-export löytyy kohdasta `Setup → Other Configurations → 
 - `dotnet test TradingJournal.sln` — Windows-agentti
 
 Domain-fixture varmistaa 59 filliä, 11 orderia, 5 treidiä ja `-$2.6318` gross P&L:n.
+
+## Vaihe 2: kulut, dashboard ja chartit
+
+1. Suorita uusin Supabase-migraatio komennolla `supabase db push`.
+2. Migraatio luo broker-taulut ja yksityisen `market-data` Storage -bucketin.
+3. Lisää Verceliin `ALPACA_API_KEY_ID` ja `ALPACA_API_SECRET_KEY`. Älä käytä niissä `NEXT_PUBLIC_`-etuliitettä.
+4. Redeployaa web-sovellus.
+5. Lataa brokerin `Transactions.csv` Importit-sivulta.
+
+Chart käyttää Alpaca Basicin historiallista 1 minuutin SIP-dataa. Ensimmäinen täydellisen session avaus tallentaa gzipatun symboli-päivän Supabase Storageen; seuraavat avaukset käyttävät omaa arkistoa.
