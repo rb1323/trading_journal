@@ -84,8 +84,12 @@ export function parseBrokerCsv(csv: string): BrokerParseResult {
     const side = get(row, headers, "side").toUpperCase();
     const symbol = get(row, headers, "symbol").toUpperCase();
 
-    if (!accountNumber || !transactionId || !entryType || !tradeDateRaw || !symbol) {
+    if (!accountNumber || !transactionId || !entryType || !tradeDateRaw) {
       issues.push({ line, message: "Pakollinen broker-arvo puuttuu." });
+      continue;
+    }
+    if (entryType === "TRD" && (!symbol || !side)) {
+      issues.push({ line, message: "Treidiriviltä puuttuu symboli tai side." });
       continue;
     }
     if (!["", "B", "S", "SS"].includes(side)) {
@@ -110,8 +114,8 @@ export function parseBrokerCsv(csv: string): BrokerParseResult {
     ] as const;
     const parsed = Object.fromEntries(numericFields.map(([name, raw]) => [name, parseNumber(raw, line, name, issues)])) as Record<string, string | null>;
     if (Object.values(parsed).some((value) => value === null)) continue;
-    if (new Decimal(parsed.quantity ?? 0).isZero()) {
-      issues.push({ line, message: "Qty ei voi olla nolla." });
+    if (entryType === "TRD" && new Decimal(parsed.quantity ?? 0).isZero()) {
+      issues.push({ line, message: "Treidirivin Qty ei voi olla nolla." });
       continue;
     }
 
@@ -197,6 +201,11 @@ export function reconcileTradeCosts(
 
   let unallocatedFees = new Decimal(0);
   for (const transaction of transactions.filter((row) => row.entryType === "JNLC")) {
+    const isLocateFee = Boolean(transaction.symbol) && !new Decimal(transaction.locateFee).isZero();
+    if (!isLocateFee) {
+      unallocatedFees = unallocatedFees.plus(transaction.totalFees);
+      continue;
+    }
     const shortEntryLegs = legs.filter((leg) =>
       leg.sourceAccount === transaction.sourceAccount && leg.tradeDate === transaction.tradeDate &&
       leg.symbol === transaction.symbol && leg.direction === "short" && leg.side === "S"

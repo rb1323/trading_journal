@@ -158,6 +158,40 @@ describe("phase 2 broker reconciliation", () => {
     expect(result.unallocatedFees).toBe("0");
     expect(result.allocations.reduce((sum, allocation) => sum.plus(allocation.amount), new Decimal(0)).toFixed(2)).toBe("27.69");
   });
+
+  it("accepts DAS platform and market-data charges without symbol or quantity", () => {
+    const csv = [
+      "Account #,Transaction ID,Entry Type,Description,Trade Date,Settlement Date,Side,Symbol,Qty,Price,Comm,ECN,Exch Fee,RegFee,Locate Fee,Other Fees,OCC Fee,ORF Fee,TAF Fee,Total Fees,Gross Amt,Net Amt",
+      "A,1,JNLC,Monthly DAS Platform Charge,2026-08-01,2026-08-01,,,0,0,0,0,0,0,0,125,0,0,0,125,125,125",
+      "A,2,JNLC,Market Data Level 1,2026-08-01,2026-08-01,,,0,0,0,0,0,0,0,15,0,0,0,15,15,15",
+      "A,3,TRD,,2026-08-12,2026-08-13,B,TEST,100,2,0.1,0,0,0,0,0,0,0,0,0.1,200,200.1"
+    ].join("\n");
+    const broker = parseBrokerCsv(csv);
+    expect(broker.issues).toEqual([]);
+    expect(broker.transactions).toHaveLength(3);
+    expect(broker.transactions[0]).toMatchObject({ symbol: "", quantity: "0", totalFees: "125" });
+
+    const result = reconcileTradeCosts([
+      { tradeId: "trade", sourceAccount: "A", symbol: "TEST", tradeDate: "2026-08-12", direction: "long", side: "B", quantity: 100, notional: "200" }
+    ], broker.transactions.map((row) => ({ ...row, sourceAccount: row.accountNumber })));
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0]?.status).toBe("reconciled");
+    expect(result.allocations).toEqual([{ transactionStableKey: broker.transactions[2]?.stableKey, tradeId: "trade", costType: "trade_fee", amount: "0.1" }]);
+    expect(result.unallocatedFees).toBe("140");
+  });
+
+  it("does not allocate a non-locate JNLC charge even when it has a symbol", () => {
+    const csv = [
+      "Account #,Transaction ID,Entry Type,Description,Trade Date,Settlement Date,Side,Symbol,Qty,Price,Comm,ECN,Exch Fee,RegFee,Locate Fee,Other Fees,OCC Fee,ORF Fee,TAF Fee,Total Fees,Gross Amt,Net Amt",
+      "A,1,JNLC,Symbol subscription,2026-08-12,2026-08-12,,TEST,1,0,0,0,0,0,0,9,0,0,0,9,9,9"
+    ].join("\n");
+    const broker = parseBrokerCsv(csv);
+    const result = reconcileTradeCosts([
+      { tradeId: "short", sourceAccount: "A", symbol: "TEST", tradeDate: "2026-08-12", direction: "short", side: "S", quantity: 1, notional: "10" }
+    ], broker.transactions.map((row) => ({ ...row, sourceAccount: row.accountNumber })));
+    expect(result.allocations).toEqual([]);
+    expect(result.unallocatedFees).toBe("9");
+  });
 });
 
 describe("phase 3 drawdown analytics", () => {

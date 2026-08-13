@@ -24,11 +24,17 @@ export async function POST(request: Request) {
   const hash = sha256(bytes);
   const admin = createSupabaseAdminClient();
   const { data: previous } = await admin.from("broker_imports").select("*").eq("user_id", user.id).eq("sha256", hash).maybeSingle();
-  if (previous) return NextResponse.json({ ...previous, idempotent: true });
+  if (previous && ["succeeded", "needs_mapping"].includes(previous.status)) return NextResponse.json({ ...previous, idempotent: true });
 
-  const { data: brokerImport, error: importError } = await admin.from("broker_imports").insert({
-    user_id: user.id, file_name: file.name, file_size: file.size, sha256: hash
-  }).select("id").single();
+  const importOperation = previous
+    ? admin.from("broker_imports").update({
+        file_name: file.name, file_size: file.size, status: "processing", row_count: 0,
+        added_count: 0, duplicate_count: 0, error_count: 0, issues: [], processed_at: null
+      }).eq("id", previous.id).select("id").single()
+    : admin.from("broker_imports").insert({
+        user_id: user.id, file_name: file.name, file_size: file.size, sha256: hash
+      }).select("id").single();
+  const { data: brokerImport, error: importError } = await importOperation;
   if (importError || !brokerImport) return NextResponse.json({ error: importError?.message ?? "Importin luonti epäonnistui." }, { status: 500 });
 
   try {
