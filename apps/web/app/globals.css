@@ -100,7 +100,13 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
 .dashboard-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .visual-card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 18px; min-width: 0; }
 .visual-card.wide { grid-column: 1 / -1; }
-.visual-card svg { width: 100%; height: 250px; overflow: visible; }
+.performance-chart-host { width: 100%; min-width: 0; }
+.performance-chart-host svg { display: block; width: 100%; height: 280px; overflow: visible; }
+.chart-grid-line { stroke: #20313d; stroke-width: 1; }
+.chart-zero-line { stroke: #4a6575; stroke-width: 1.5; }
+.chart-axis-line, .chart-axis-tick { stroke: #3a5261; stroke-width: 1; }
+.chart-axis-label { fill: #8ea3af; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 0; text-transform: none; }
+.chart-date-label { fill: #9eb0ba; }
 .visual-title { display: flex; justify-content: space-between; text-transform: uppercase; color: var(--cyan); letter-spacing: .1em; font-size: 10px; margin-bottom: 18px; }
 .visual-title strong { font: 700 13px ui-monospace, SFMono-Regular, Consolas, monospace; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 7px; overflow-x: auto; }
