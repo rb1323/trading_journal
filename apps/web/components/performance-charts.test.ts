@@ -57,5 +57,6 @@ describe("dashboard chart labels", () => {
     expect(formatAxisMoney(-2.5)).toBe("-$2.50");
     expect(formatAxisMoney(1_500)).toBe("$1.5k");
     expect(formatAxisMoney(1_200_000)).toBe("$1.2M");
+    expect(formatAxisMoney(-0.0000000001)).toBe("$0");
   });
 });

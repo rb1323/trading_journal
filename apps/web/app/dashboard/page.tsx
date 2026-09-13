@@ -1,8 +1,9 @@
 import Decimal from "decimal.js";
 import { DateTime } from "luxon";
 import Link from "next/link";
-import { calculateDrawdowns } from "@trading-journal/trade-domain";
+import { buildTradeAnalytics, calculateDrawdowns } from "@trading-journal/trade-domain";
 import { PerformanceCharts, type DailyPerformance } from "@/components/performance-charts";
+import { TradeAnalytics } from "@/components/trade-analytics";
 import { requireUser } from "@/lib/auth";
 import { formatMoney, formatNumber } from "@/lib/format";
 
@@ -42,6 +43,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   ]);
 
   const rows = trades ?? [];
+  const analytics = buildTradeAnalytics(rows.map((trade) => ({
+    openedAt: String(trade.opened_at),
+    entryPrice: String(trade.entry_vwap),
+    quantity: Number(trade.quantity),
+    netPnl: String(trade.net_pnl ?? trade.gross_pnl)
+  })));
   const gross = rows.reduce((sum, trade) => sum.plus(String(trade.gross_pnl)), new Decimal(0));
   const totalFees = rows.reduce((sum, trade) => sum.plus(String(trade.allocated_fees ?? 0)), new Decimal(0));
   const net = rows.reduce((sum, trade) => sum.plus(String(trade.net_pnl ?? trade.gross_pnl)), new Decimal(0));
@@ -111,6 +118,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <article><span>Current drawdown</span><strong className={new Decimal(drawdowns.currentDrawdown).isNegative() ? "negative" : ""}>{formatMoney(drawdowns.currentDrawdown)} · {drawdowns.currentLengthTradingDays} pv</strong></article>
     </div>
     <PerformanceCharts daily={daily} />
+    <TradeAnalytics analytics={analytics} />
     <div className="section-heading"><h2>Review-analytiikka</h2><Link className="ghost" href="/review">Avaa review-jono</Link></div>
     <div className="review-summary">
       <article><span>Review-kattavuus</span><strong>{rows.length ? (reviewed.length / rows.length * 100).toFixed(1) : "0.0"}%</strong><small>{reviewed.length} / {rows.length} treidiä</small></article>

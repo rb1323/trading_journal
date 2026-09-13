@@ -80,7 +80,7 @@ export function dateRangeSpansYears(dates: string[]): boolean {
 }
 
 export function formatAxisMoney(value: number): string {
-  if (!Number.isFinite(value) || Object.is(value, -0) || value === 0) return "$0";
+  if (!Number.isFinite(value) || Object.is(value, -0) || Math.abs(value) < 1e-9) return "$0";
   const absolute = Math.abs(value);
   const sign = value < 0 ? "-" : "";
   const units = [

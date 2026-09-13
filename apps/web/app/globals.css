@@ -183,6 +183,26 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
 .analytics-row > span { display: flex; align-items: center; gap: 8px; }
 .analytics-row i { width: 8px; height: 8px; border-radius: 50%; }
 .analytics-row small { color: var(--muted); margin-left: 4px; }
+.trade-analytics-section { margin-top: 34px; }
+.analytics-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.analytics-tabs button { border: 1px solid #223846; background: #0a121a; color: var(--muted); border-radius: 6px; padding: 9px 13px; font-size: 12px; cursor: pointer; }
+.analytics-tabs button:hover, .analytics-tabs button.active { border-color: var(--cyan); color: var(--cyan); background: #08202a; }
+.analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.analytics-card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 17px 18px 12px; overflow: hidden; }
+.analytics-card-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.analytics-card-title h3 { margin: 0; font-size: 13px; letter-spacing: .01em; }
+.analytics-card-title span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.analytics-chart-host { width: 100%; min-width: 0; }
+.analytics-chart-host svg { display: block; width: 100%; }
+.analytics-grid-line { stroke: #20313d; stroke-width: 1; }
+.analytics-zero-line { stroke: #4a6575; stroke-width: 1.5; }
+.analytics-axis-line { stroke: #3a5261; stroke-width: 1; }
+.analytics-axis-label, .analytics-category-label { fill: #8ea3af; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.analytics-category-label { fill: #b4c3ca; }
+.analytics-bar { shape-rendering: geometricPrecision; }
+.analytics-bar-count, .analytics-bar-positive { fill: #19ee91; }
+.analytics-bar-negative { fill: #ff3b70; }
+.analytics-note { color: var(--muted); font-size: 11px; margin: 12px 0 0; }
 
 .login-page { min-height: calc(100vh - 71px); display: grid; grid-template-columns: 1.2fr .8fr; align-items: center; gap: 8vw; width: min(1150px, calc(100% - 40px)); margin: 0 auto; }
 .login-copy h1 { font-size: clamp(48px, 6vw, 82px); line-height: .98; letter-spacing: -.06em; }
@@ -213,4 +233,6 @@ td small { display: block; color: var(--muted); margin-top: 3px; }
   .review-row > div:last-child { align-items: flex-start; }
   .drawdown-kpis, .review-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .journal-analytics { grid-template-columns: 1fr; }
+  .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-card-title { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
