@@ -1,5 +1,13 @@
 # Northstar Journal — DAS Live Import
 
+## Julkinen demo
+
+Portfolioa varten sovelluksessa on kirjautumatta avautuva read-only-demo osoitteessa `/demo`. Demo käyttää erillistä determinististä synteettistä dataa, eikä kutsu Supabasea, Alpaca API:a tai DAS-agenttia. Se näyttää dashboardin, drawdownit, treidien chartit, analytiikan ja review-esimerkit.
+
+Vercelissä demon voi kytkeä pois ympäristömuuttujalla `DEMO_ENABLED=false`. Paikallisesti demo avautuu komennolla `pnpm dev` ja osoitteella `http://localhost:3000/demo`.
+
+Esittelyvideoon ja kuvakaappauksiin liittyvä käsikirjoitus on tiedostossa [`docs/demo/video-script.md`](docs/demo/video-script.md).
+
 Vaiheen 1 toteutus synkronoi DAS Traderin automaattisesti päivittyvän `Trades.csv`-tiedoston Windows-agentilta Supabaseen ja näyttää fillit, avoimet positiot sekä zero-to-zero-treidit Next.js-sovelluksessa.
 
 ## Rakenne

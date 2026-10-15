@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 const navigation = [
+  ["Demo", "/demo"],
   ["Dashboard", "/dashboard"],
   ["Treidit", "/trades"],
   ["Review", "/review"],

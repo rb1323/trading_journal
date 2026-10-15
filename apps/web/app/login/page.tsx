@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
 import { hasPublicSupabaseEnv } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -15,7 +16,7 @@ export default async function LoginPage() {
   return (
     <section className="login-page">
       <div className="login-copy"><p className="eyebrow">DAS LIVE IMPORT</p><h1>Treidisi.<br />Yksi luotettava totuus.</h1><p>Synkronoi executionit suoraan DAS Traderista ja näe jokainen round trip ilman manuaalista vientiä.</p></div>
-      <div className="center-card"><p className="eyebrow">KIRJAUDU</p><h2>Tervetuloa takaisin</h2><LoginForm /></div>
+      <div className="center-card"><p className="eyebrow">KIRJAUDU</p><h2>Tervetuloa takaisin</h2><LoginForm /><p className="muted" style={{ marginTop: 18, fontSize: 12 }}>Haluatko nähdä sovelluksen ensin? <Link href="/demo" style={{ color: "var(--cyan)" }}>Avaa julkinen demo →</Link></p></div>
     </section>
   );
 }
